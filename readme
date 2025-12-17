@@ -1,0 +1,52 @@
+# WebRTC Screen Sharing & Conferencing Platform
+## Folder Structure
+```
+web-rtc-platform/
+├── package.json        # Dependencies and scripts
+├── server.js           # Main Signaling Server (Node.js + Socket.IO)
+└── public/             # Frontend Assets
+    ├── landing.html    # Entry page
+    ├── host.html       # Host Interface
+    ├── viewer.html     # Viewer Interface
+    ├── css/
+    │   └── style.css   # Main Stylesheet
+    ├── js/
+    │   ├── host.js     # Host Logic
+    │   └── viewer.js   # Viewer Logic
+    └── audio/          # Sound Effects
+        └── README.txt
+```
+## Local Run Instructions
+1. **Install Dependencies**:
+   Open a terminal in the project folder and run:
+   ```bash
+   npm install
+   ```
+   *(Note: Requires Node.js installed)*
+2. **Start Server**:
+   ```bash
+   node server.js
+   ```
+3. **Access Application**:
+   - Open browser to `http://localhost:3000`
+   - Click "New Meeting (Host)" to start a room.
+   - Share the generated Room ID or URL with viewers.
+   - Open a new window (Incognito recommended for local testing) to join as Viewer.
+## WebRTC Signaling Explanation
+This application uses a standard WebRTC signaling flow via Socket.IO:
+1. **Room Creation**: Host creates a unique Room ID (UUID) on the server.
+2. **Joining**: Viewers join this room via Socket.IO room logic.
+3. **Peer Connection (Star Topology)**:
+   - The system effectively uses a Star/Mesh hybrid. 
+   - **Host** acts as the broadcaster. When a Viewer joins, the Host initiates a `RTCPeerConnection`.
+   - **Offer/Answer**: Host creates an SDP Offer containing media capabilities (Screen Share codec info) and sends it to the specific Viewer via the Server.
+   - **Viewer**: Receives the Offer, sets it as Remote Description, generates an SDP Answer, and sends it back.
+   - **ICE Candidates**: Both sides exchange Network ICE Candidates to traverse NAT/Firewalls (using Google's public STUN server).
+4. **Media Permissions**:
+   - **Host**: Uses `getDisplayMedia` merged with `getUserMedia` audio.
+   - **Viewer**: Uses `getUserMedia` with `audio: false` (Strict Requirement) to ensure no audio is ever sent.
+   - **Renegotiation**: If a Viewer enables their camera, `negotiationneeded` triggers a new Offer/Answer cycle initiated by the Viewer to add the video track to the existing connection.
+## Security Features
+- **Strict Audio Blocking**: Viewer code explicitly requests `audio: false`.
+- **Server Validation**: Host actions (Mute All, Kick) are validated against the socket's role on the server.
+- **Role Isolation**: Separate HTML/JS files for Host and Viewer prevent UI tampering to access controls.
