@@ -1,0 +1,171 @@
+const express = require('express');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+
+const PORT = process.env.PORT || 3000;
+
+// Serve static files from 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
+// Room state management
+const rooms = {}; // { roomId: { hostSocketId: string, viewers: [], settings: {} } }
+
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    // Host creates a room
+    socket.on('create-room', () => {
+        const roomId = uuidv4();
+        rooms[roomId] = {
+            host: socket.id,
+            viewers: [], // Array of viewer socket IDs
+            settings: {
+                chatEnabled: true,
+                doubtsEnabled: true,
+                videoEnabled: true // Allow viewer video by default
+            }
+        };
+        socket.join(roomId);
+        // Tag socket as host
+        socket.data.role = 'host';
+        socket.data.roomId = roomId;
+
+        socket.emit('room-created', { roomId });
+        console.log(`Room created: ${roomId} by Host ${socket.id}`);
+    });
+
+    // Viewer joins a room
+    socket.on('join-room', ({ roomId, username }) => {
+        const room = rooms[roomId];
+        if (room) {
+            socket.join(roomId);
+            socket.data.role = 'viewer';
+            socket.data.roomId = roomId;
+            socket.data.username = username || 'Anonymous';
+
+            room.viewers.push(socket.id);
+
+            // Notify Host
+            io.to(room.host).emit('viewer-joined', {
+                id: socket.id,
+                username: socket.data.username
+            });
+
+            // Send initial state to viewer
+            socket.emit('room-joined', {
+                success: true,
+                settings: room.settings
+            });
+            console.log(`Viewer ${socket.id} joined room ${roomId}`);
+        } else {
+            socket.emit('room-joined', { success: false, error: 'Room not found' });
+        }
+    });
+
+    // WebRTC Signaling (Offer, Answer, Candidate)
+    // We expect the client to specify 'target' socket ID for direct signaling
+    socket.on('signal', (data) => {
+        const { target, type, payload } = data;
+        // Security: Simple relay. In production, verify if target is in same room.
+        // For this task, we trust the client logic but could check rooms[socket.data.roomId]
+        io.to(target).emit('signal', {
+            sender: socket.id,
+            type,
+            payload
+        });
+    });
+
+    // Chat Message
+    socket.on('chat-message', (data) => {
+        const roomId = socket.data.roomId;
+        if (!roomId || !rooms[roomId]) return;
+
+        // Check if chat is enabled
+        if (socket.data.role === 'viewer' && !rooms[roomId].settings.chatEnabled) {
+            return; // Chat disabled
+        }
+
+        // Broadcast to room
+        io.to(roomId).emit('chat-message', {
+            senderId: socket.id,
+            senderName: socket.data.username || 'Host',
+            message: data.message,
+            timestamp: new Date().toISOString(),
+            isHost: socket.data.role === 'host'
+        });
+    });
+
+    // Doubt System (Viewer -> Host)
+    socket.on('doubt-message', (data) => {
+        if (socket.data.role !== 'viewer') return;
+        const roomId = socket.data.roomId;
+        if (roomId && rooms[roomId]) {
+            if (!rooms[roomId].settings.doubtsEnabled) return;
+
+            io.to(rooms[roomId].host).emit('doubt-received', {
+                id: uuidv4(),
+                senderId: socket.id,
+                senderName: socket.data.username,
+                text: data.text,
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
+
+    // Host Action (Mute chat, etc.)
+    socket.on('host-action', (data) => {
+        if (socket.data.role !== 'host') return; // Strict permission check
+        const roomId = socket.data.roomId;
+        if (!roomId || !rooms[roomId]) return;
+
+        const { action, value, targetId } = data;
+
+        if (action === 'toggle-chat') {
+            rooms[roomId].settings.chatEnabled = value;
+            io.to(roomId).emit('settings-update', { chatEnabled: value });
+        } else if (action === 'toggle-doubts') {
+            rooms[roomId].settings.doubtsEnabled = value;
+            io.to(roomId).emit('settings-update', { doubtsEnabled: value });
+        } else if (action === 'kick-user') {
+            // Force disconnect target
+            const targetSocket = io.sockets.sockets.get(targetId);
+            if (targetSocket) {
+                targetSocket.leave(roomId);
+                targetSocket.disconnect(true);
+            }
+        }
+        // Add more host actions as needed
+    });
+
+    // Disconnect
+    socket.on('disconnect', () => {
+        const roomId = socket.data.roomId;
+        if (roomId && rooms[roomId]) {
+            if (socket.data.role === 'host') {
+                // Host left, close room (?) or keep open?
+                // For simplicity, notify viewers room is closed
+                io.to(roomId).emit('room-closed');
+                delete rooms[roomId];
+            } else {
+                // Viewer left
+                rooms[roomId].viewers = rooms[roomId].viewers.filter(id => id !== socket.id);
+                if (io.sockets.sockets.get(rooms[roomId].host)) {
+                    io.to(rooms[roomId].host).emit('viewer-left', { id: socket.id });
+                }
+            }
+        }
+        console.log('User disconnected:', socket.id);
+    });
+});
+
+http.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
