@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewer | WebRTC Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Main Video Area -->
+        <div class="video-area">
+            <video id="main-video" autoplay playsinline></video>
+
+            <div class="controls-bar">
+                <button class="control-btn" id="cam-btn" title="Toggle Camera">Cam</button>
+                <button class="control-btn" id="hand-btn" title="Raise Hand">✋</button>
+                <button class="control-btn" id="doubt-btn" title="Ask Doubt">❓</button>
+                <button class="control-btn danger" id="leave-btn" title="Leave">Exit</button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                Meeting
+            </div>
+
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="chat">Chat</button>
+                <button class="tab-btn" data-tab="participants">Info</button>
+            </nav>
+
+            <div id="chat-panel" class="panel-content active">
+                <div id="chat-messages" style="height: calc(100% - 60px); overflow-y: auto;"></div>
+                <div class="input-area">
+                    <input type="text" id="chat-input" placeholder="Type a message...">
+                </div>
+            </div>
+
+            <div id="participants-panel" class="panel-content">
+                <p>Connected to Host</p>
+                <div id="connection-status" style="color: var(--success);">Online</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doubt Modal -->
+    <div id="doubt-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:center;">
+        <div class="card">
+            <h3>Ask a Doubt</h3>
+            <textarea id="doubt-text" rows="4"
+                style="width:100%; background:#334155; color:white; border:none; padding:0.5rem; border-radius:0.5rem; margin:1rem 0;"
+                placeholder="Write your question..."></textarea>
+            <button id="send-doubt-btn">Send Priority Message</button>
+            <button class="secondary"
+                onclick="document.getElementById('doubt-modal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Audio Effects -->
+    <audio id="sound-chat" src="/audio/chat.mp3"></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/viewer.js"></script>
+</body>
+
+</html>
