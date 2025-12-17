@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host | WebRTC Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Main Video Area -->
+        <div class="video-area">
+            <video id="main-video" autoplay playsinline muted></video> <!-- Muted for host to avoid echo -->
+            <div class="controls-bar">
+                <button class="control-btn" id="mic-btn" title="Toggle Mic">Mic</button>
+                <button class="control-btn active" id="share-btn" title="Share Screen">Share</button>
+                <button class="control-btn" id="cam-btn" title="Toggle Camera (Not sharing)">Cam</button>
+                <span style="width: 1rem;"></span>
+                <button class="control-btn danger" id="mute-all-btn" title="Mute All Chat">Chat</button>
+                <button class="control-btn warning" id="end-btn" title="End Meeting">End</button>
+            </div>
+            <!-- Notifications will appear here -->
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                Room ID: <span id="room-id-display" style="user-select: all; color: var(--accent);">...</span>
+            </div>
+
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="participants">Users (<span id="user-count">0</span>)</button>
+                <button class="tab-btn" data-tab="chat">Chat</button>
+                <button class="tab-btn" data-tab="doubts">Doubts</button>
+            </nav>
+
+            <div id="participants-panel" class="panel-content active">
+                <div class="viewer-grid" id="viewer-grid">
+                    <!-- Viewer/Participant video cards go here -->
+                </div>
+            </div>
+
+            <div id="chat-panel" class="panel-content">
+                <div id="chat-messages" style="height: calc(100% - 60px); overflow-y: auto;"></div>
+                <div class="input-area">
+                    <input type="text" id="chat-input" placeholder="Type a message...">
+                </div>
+            </div>
+
+            <div id="doubts-panel" class="panel-content">
+                <div id="doubts-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Effects -->
+    <audio id="sound-join" src="/audio/join.mp3"></audio>
+    <audio id="sound-leave" src="/audio/leave.mp3"></audio>
+    <audio id="sound-raise" src="/audio/raise.mp3"></audio>
+    <audio id="sound-doubt" src="/audio/doubt.mp3"></audio>
+    <audio id="sound-chat" src="/audio/chat.mp3"></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/host.js"></script>
+</body>
+
+</html>
